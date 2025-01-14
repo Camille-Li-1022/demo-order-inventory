@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Inventory } from './inventory-service/src/entities/inventory.entity';
 import { QueueService } from './queue/src/queue.service';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import { RedisLockService } from "./shared/src/redis/redis-lock.service"
 
 
 @Injectable()
@@ -13,6 +14,7 @@ export class AppService {
     constructor(
         @InjectRedis() private readonly redis: Redis,
         private readonly queueService: QueueService,
+        private readonly redisLockService: RedisLockService,
         // @InjectRepository(Inventory) private inventoryRepository: Repository<Inventory>,
     ) {}
     

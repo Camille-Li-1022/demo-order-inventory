@@ -5,12 +5,13 @@ import { RedisModule } from './shared/src/redis/redis.module';
 import { TypeOrmModule } from "@nestjs/typeorm"
 import { QueueModule } from './queue/src/queue.module';
 import { Inventory } from './inventory-service/src/entities/inventory.entity';
-
+import { RedisLockModule } from './shared/src/redis/redis-lock.module';
 
 @Module({
   imports: [
     QueueModule,
     RedisModule,
+    RedisLockModule
     // TypeOrmModule.forRoot({
     //   type: 'mysql',
     //   host: 'localhost',
