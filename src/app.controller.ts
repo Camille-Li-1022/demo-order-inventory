@@ -14,6 +14,7 @@ export class AppController {
         return this.appService.getHello();
     }
 
+    // redis
     @Get('set')
     async setKey(): Promise<string> {
         await this.appService.setKey('test', 'hello world');
@@ -24,10 +25,13 @@ export class AppController {
         return this.appService.getKey('test')
     }
 
-    // @Get()
-    // async findAll(): Promise<Inventory[]> {
-    //     return await this.appService.findAll();
-    // }
+    // mysql
+    @Get('all_products')
+    async findAll(): Promise<Inventory[]> {
+        return await this.appService.findAll();
+    }
+
+    // redis
     @Get('mq_send')
     async sendMqMsg(): Promise<string> {
         return this.appService.sendMqMsg()

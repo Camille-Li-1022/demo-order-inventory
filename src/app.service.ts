@@ -15,7 +15,7 @@ export class AppService {
         @InjectRedis() private readonly redis: Redis,
         private readonly queueService: QueueService,
         private readonly redisLockService: RedisLockService,
-        // @InjectRepository(Inventory) private inventoryRepository: Repository<Inventory>,
+        @InjectRepository(Inventory) private inventoryRepository: Repository<Inventory>,
     ) {}
     
     getHello(): string {
@@ -30,10 +30,12 @@ export class AppService {
         return await this.redis.get(key);
     }
 
-    // // 查找所有库存
-    // async findAll(): Promise<Inventory[]> {
-    //     return await this.inventoryRepository.find();
-    // }
+    // 查找所有库存
+    async findAll(): Promise<Inventory[]> {
+        return await this.inventoryRepository.find();
+    }
+
+
     async sendMqMsg(): Promise<string> {
         await this.queueService.publishMessage('inventory_reduce_queue', { product_id: '1001', quantity: 1, order_id: 'test_order1' });
         return 'ok'

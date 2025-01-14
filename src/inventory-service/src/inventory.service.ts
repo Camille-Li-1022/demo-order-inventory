@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-// import { Repository } from 'typeorm'
-// import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm'
+import { InjectRepository } from '@nestjs/typeorm';
 import { Inventory } from './entities/inventory.entity';
 import { RedisLockService } from "../../shared/src/redis/redis-lock.service"
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
@@ -11,7 +11,7 @@ import { QueueService } from '../../queue/src/queue.service';
 export class InventoryService {
     // private inventory = { productId1: 100, productId2: 200 }; // 模拟库存
     constructor(
-        // @InjectRepository(Inventory) private readonly inventoryRepo: Repository<Inventory>,
+        @InjectRepository(Inventory) private readonly inventoryRepo: Repository<Inventory>,
         private readonly redisLockService: RedisLockService,
         private readonly queueService: QueueService,
     ) {}
@@ -56,11 +56,28 @@ export class InventoryService {
             return
         }
         
-        console.log(`<Inventory-Service> send mq message: inventory_reduce_queue_done`, { order_id, status: `CONFIRM` })
-        // 发送消息到库存服务
-        await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `CONFIRM` });
+        try {
+            const inventory = await this.inventoryRepo.findOne({ where: { product_id } });
+            console.log("=========== debug in Inventory-Service, get inventory by product_id: ", { inventory, product_id })
+            if (!inventory || inventory.stock < quantity) {
+                console.log(`<Inventory-Service> reject(Insufficient stock) send mq message: inventory_reduce_queue_done`, { order_id, status: `REJECT` })
+                // 发送消息到库存服务
+                await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
+                console.error('Insufficient stock.')
+                return;
+                // throw new ConflictException('Insufficient stock.');
+            }
+      
+            inventory.stock -= quantity;
+            await this.inventoryRepo.save(inventory);
+            
+            console.log(`<Inventory-Service> send mq message: inventory_reduce_queue_done`, { order_id, status: `CONFIRM` })
+            // 发送消息到库存服务
+            await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `CONFIRM` });
 
-        await this.redisLockService.unlock(lockKey);
+        } finally {
+            await this.redisLockService.unlock(lockKey);
+        }
     }
     // async reduceInventory(msg: { order_id: number; product_id: string; quantity: number }) { //: Promise<void> {
     //     const { order_id, product_id, quantity } = msg;
