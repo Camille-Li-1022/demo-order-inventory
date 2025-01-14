@@ -12,7 +12,7 @@ VALUES
     ('product_1002', 100);
     
 -- 订单表
-CREATE TABLE orders (
+CREATE TABLE order (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     product_id VARCHAR(255) NOT NULL,

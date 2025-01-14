@@ -16,6 +16,17 @@ export class OrderController {
     async createOrder(@Body() createOrderDto: Order) {
         return this.orderService.createOrder(createOrderDto);
     }
+
+    @Post('complete')
+    async completeOrder(@Body() body: { user_id: number, order_id: number }) : Promise<string> {
+        return this.orderService.completeOrder(body.user_id, body.order_id);
+    }
+
+    // TODO: order expire time, to cancel auto
+    @Post('cancel')
+    async cancelOrder(@Body() body: { user_id: number, order_id: number }) : Promise<string> {
+        return this.orderService.cancelOrder(body.user_id, body.order_id);
+    }
 }
 
 

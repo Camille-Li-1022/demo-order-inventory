@@ -20,21 +20,6 @@ export class InventoryService {
         return 'Hello Inventory Service!';
     }
 
-    // @RabbitSubscribe({
-    //   exchange: 'nest_rabbitmq',
-    //   routingKey: 'inventory_check_queue',
-    //   queue: 'inventory_check_queue',
-    // })
-    // async checkInventory(msg: { productId: string; quantity: number }) {
-    //   const { productId, quantity } = msg;
-    //   if (this.inventory[productId] && this.inventory[productId] >= quantity) {
-    //     console.log(`Inventory available for product ${productId}`);
-    //     // 可以添加进一步的逻辑，比如锁定库存
-    //   } else {
-    //     console.error(`Insufficient inventory for product ${productId}`);
-    //   }
-    // }
-
     @RabbitSubscribe({
         exchange: 'nest_rabbitmq',
         routingKey: 'inventory_reduce_queue',
@@ -79,35 +64,27 @@ export class InventoryService {
             await this.redisLockService.unlock(lockKey);
         }
     }
-    // async reduceInventory(msg: { order_id: number; product_id: string; quantity: number }) { //: Promise<void> {
-    //     const { order_id, product_id, quantity } = msg;
-    //     const lockKey = `lock:inventory:${product_id}`;
-    //     const lockAcquired = await this.redisLockService.lock(lockKey, 5000); // 5秒锁
-    
-    //     if (!lockAcquired) {
-    //         // 发送消息到库存服务
-    //         await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
-    //         console.error('Unable to acquire lock for inventory.')
-    //         // throw new ConflictException('Unable to acquire lock for inventory.');
-    //     }
-    
-    //     try {
-    //         const inventory = await this.inventoryRepo.findOne({ where: { product_id } });
-    //         if (!inventory || inventory.stock < quantity) {
-    //             // 发送消息到库存服务
-    //             await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
-    //             console.error('Insufficient stock.')
-    //             // throw new ConflictException('Insufficient stock.');
-    //         }
-      
-    //         inventory.stock -= quantity;
-    //         await this.inventoryRepo.save(inventory);
-            
-    //         // 发送消息到库存服务
-    //         await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `CONFIRM` });
 
-    //     } finally {
-    //         await this.redisLockService.unlock(lockKey);
-    //     }
-    // }
+    @RabbitSubscribe({
+        exchange: 'nest_rabbitmq',
+        routingKey: 'inventory_add_queue',
+        queue: 'inventory_add_queue',
+    })
+    async addInventory(msg: { order_id: number, product_id: string; quantity: number }) {
+        const { order_id, product_id, quantity } = msg;
+        try {
+            const inventory = await this.inventoryRepo.findOne({ where: { product_id } });
+            if (!inventory) {
+                throw new ConflictException('Inventory not found.');
+            }
+      
+            inventory.stock += quantity;
+            await this.inventoryRepo.save(inventory);
+            console.log(`<Inventory-Service>: inventory_add_queue`, msg)
+        } catch(error) {
+            console.error(`addInventory catch error: `, error)
+        }
+
+    }
+
 }

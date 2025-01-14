@@ -6,43 +6,6 @@ import { QueueService } from '../../queue/src/queue.service';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import * as moment from 'moment';
 
-// @Injectable()
-// export class OrderService {
-//   constructor(
-//     private readonly queueService: QueueService,
-//     @InjectRepository(Order) private orderRepository: Repository<Order>,
-//   ) {}
-
-//   async createOrder(dto: CreateOrderDto) {
-//     // 检查库存（调用库存服务）
-//     const inventoryAvailable = await this.queueService.checkInventory(dto.productId, dto.quantity);
-//     if (!inventoryAvailable) throw new BadRequestException('Insufficient stock');
-
-//     // 创建订单
-//     const order = this.orderRepository.create({ ...dto, status: 'PENDING' });
-//     await this.orderRepository.save(order);
-
-//     // 发送扣减库存消息到队列
-//     this.queueService.reduceStock(dto.productId, dto.quantity);
-
-//     return { orderId: order.id, message: 'Order placed successfully' };
-//   }
-// }
-
-
-// @Injectable()
-// export class OrderService {
-//   constructor(private readonly queueService: QueueService) {}
-
-//   async createOrder(productId: string, quantity: number) {
-//     // 发送库存检查消息
-//     await this.queueService.publishMessage('inventory_check_queue', { productId, quantity });
-
-//     // 模拟直接返回，实际会通过消费者返回检查结果
-//     return { message: 'Order created and inventory check requested.' };
-//   }
-// }
-
 @Injectable()
 export class OrderService {
     constructor(
@@ -67,19 +30,6 @@ export class OrderService {
     
         return order;
     }
-    // async createOrder(dto: Order): Promise<string> {
-    //     const { user_id, product_id, quantity } = dto;
-    //     // const order = this.orderRepo.create({ user_id, product_id, quantity, status: 'PENDING' });
-    //     // const savedOrder = await this.orderRepo.save(order);
-    //     // const order_id = savedOrder.id;
-    //     const order_id = moment().valueOf();
-    
-    //     console.log(`<Order-Service> send mq message: inventory_reduce_queue`, { product_id, quantity, order_id }, { user_id })
-    //     // 发送消息到库存服务
-    //     await this.queueService.publishMessage('inventory_reduce_queue', { product_id, quantity, order_id });
-    
-    //     return 'send order mq done';
-    // }
 
     @RabbitSubscribe({
         exchange: 'nest_rabbitmq',
@@ -98,7 +48,48 @@ export class OrderService {
             order.status = status
             await this.orderRepo.save(order);
         } catch(error) {
-            console.error(`updateOrder catch error: `, error)
+            console.error(`Update:: order not found: `, error)
         }
+    }
+
+    async completeOrder(user_id:number, order_id: number): Promise<string> {
+        try {
+            const order = await this.orderRepo.findOne({ where: { id: order_id } });
+            if (!order || order.status != 'CONFIRM' || order.user_id != user_id) {
+                console.debug('Order not found: ', { order, user_id, order_id })
+                throw new ConflictException(`Order not found`);
+            }
+
+            order.status = 'COMPLETE'
+            await this.orderRepo.save(order);
+        } catch(error) {
+            console.error(`COMPLETE:: order not found: `, error)
+            return 'error'
+        }
+        return 'ok'
+    }
+    async cancelOrder(user_id:number, order_id: number): Promise<string> {
+        try {
+            const order = await this.orderRepo.findOne({ where: { id: order_id } });
+            if (!order || order.status != 'CONFIRM' || order.user_id != user_id) {
+                throw new ConflictException(`Order not found`);
+            }
+            const validStatus = [ 'CONFIRM', "COMPLETE" ]
+            if (!validStatus.includes(order.status)) {
+                throw new ConflictException(`Order status error`);
+            }
+
+            order.status = 'CANCEL'
+            await this.orderRepo.save(order);
+    
+            const { product_id, quantity } = order;
+            console.log(`<Order-Service> send mq message: inventory_add_queue`, { product_id, quantity, order_id }, { user_id })
+            // 发送消息到库存服务
+            await this.queueService.publishMessage('inventory_add_queue', { product_id, quantity, order_id });
+        } catch(error) {
+            console.error(`CANCEL:: order not found: `, error)
+            return 'error'
+        }
+        return 'ok'
     }
 }

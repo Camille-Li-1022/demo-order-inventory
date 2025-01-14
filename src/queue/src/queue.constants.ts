@@ -11,9 +11,10 @@ export const RABBITMQ_CONFIG = {
         
       exchange: 'nest_rabbitmq',   // 交换机名称
       queue: {
-          inventoryCheck: 'inventory_check_queue',
+          // inventoryCheck: 'inventory_check_queue',
           inventoryReduce: 'inventory_reduce_queue',
           inventoryReduceDone: 'inventory_reduce_queue_done',
+          inventoryAdd: 'inventory_add_queue',
       },
 };
   

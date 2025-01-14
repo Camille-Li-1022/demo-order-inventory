@@ -42,7 +42,7 @@ src/
     -H "Content-Type: application/json" \
     -d '{
       "user_id": 1,
-      "product_id": "1001",
+      "product_id": "product_1001",
       "quantity": 2
     }'
 
@@ -64,3 +64,22 @@ src/
     订单服务监听 order_update_queue：
     如果库存扣减成功，则更新订单状态为 CONFIRMED。
     如果扣减失败，则更新订单状态为 FAILED 并通知用户。
+
+5. 用户操作更新订单状态
+    - 用户完成付款后，更新订单状态为 COMPLETE
+    - 用户取消订单/用户申请退款退货，更新订单状态为 CANCEL
+
+    curl -X POST http://localhost:3000/order/complete \
+    -H "Content-Type: application/json" \
+    -d '{
+      "user_id": 1,
+      "order_id": 3
+    }'
+
+    
+    curl -X POST http://localhost:3000/order/cancel \
+    -H "Content-Type: application/json" \
+    -d '{
+      "user_id": 2,
+      "order_id": 4
+    }'
