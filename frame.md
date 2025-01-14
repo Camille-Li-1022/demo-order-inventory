@@ -37,6 +37,15 @@ src/
     订单服务校验订单数据，确保用户权限和请求格式合法。
     订单服务将订单存储到 MySQL 的 orders 表，并将订单状态设置为 PENDING。
     向 RabbitMQ 的 inventory_reduce_queue 发布库存扣减消息（包含 productId 和 quantity）。
+
+    curl -X POST http://localhost:3000/order/create \
+    -H "Content-Type: application/json" \
+    -d '{
+      "user_id": 1,
+      "product_id": "1001",
+      "quantity": 2
+    }'
+
 2. 消息队列处理（RabbitMQ）
     RabbitMQ 将订单服务发送的消息存入队列 inventory_reduce_queue。
     RabbitMQ 确保消息可靠传递至库存服务，且每条消息仅被消费一次。

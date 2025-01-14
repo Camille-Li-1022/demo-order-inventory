@@ -1,9 +1,10 @@
 import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
+// import { Repository } from 'typeorm';
+// import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { QueueService } from '../../queue/src/queue.service';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import * as moment from 'moment';
 
 // @Injectable()
 // export class OrderService {
@@ -44,41 +45,60 @@ import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 
 @Injectable()
 export class OrderService {
-  constructor(
-    @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
-    private readonly queueService: QueueService,
-  ) {}
-
-  async createOrder(dto: Order): Promise<Order> {
-  // async createOrder(user_id: number, product_id: string, quantity: number): Promise<Order> {
-    const { user_id, product_id, quantity } = dto;
-    const order = this.orderRepo.create({ user_id, product_id, quantity, status: 'PENDING' });
-    const savedOrder = await this.orderRepo.save(order);
-    const order_id = savedOrder.id;
-
-    // 发送消息到库存服务
-    await this.queueService.publishMessage('inventory_reduce_queue', { product_id, quantity, order_id });
-
-    return order;
-  }
-
-  @RabbitSubscribe({
-      exchange: 'order_exchange',
-      routingKey: 'inventory_reduce_queue_done',
-      queue: 'inventory_reduce_queue_done',
-  })
-  async updateOrder(msg: { order_id: number, status: string }) {
-    const { order_id, status } = msg;
-    try {
-      const order = await this.orderRepo.findOne({ where: { id: order_id } });
-      if (!order || order.status != 'PENDING') {
-        throw new ConflictException('Insufficient stock.');
-      }
-
-      order.status = status
-      await this.orderRepo.save(order);
-    } catch(error) {
-      console.error(`updateOrder catch error: `, error)
+    constructor(
+        // @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
+        private readonly queueService: QueueService,
+    ) {}
+    
+    getHello(): string {
+        return 'Hello Order Service!';
     }
-  }
+
+    // async createOrder(dto: Order): Promise<Order> {
+    //     const { user_id, product_id, quantity } = dto;
+    //     const order = this.orderRepo.create({ user_id, product_id, quantity, status: 'PENDING' });
+    //     const savedOrder = await this.orderRepo.save(order);
+    //     const order_id = savedOrder.id;
+    
+    //     console.log(`<Order-Service> send mq message: inventory_reduce_queue`, { product_id, quantity, order_id })
+    
+    //     // 发送消息到库存服务
+    //     await this.queueService.publishMessage('inventory_reduce_queue', { product_id, quantity, order_id });
+    
+    //     return order;
+    // }
+    async createOrder(dto: Order): Promise<string> {
+        const { user_id, product_id, quantity } = dto;
+        // const order = this.orderRepo.create({ user_id, product_id, quantity, status: 'PENDING' });
+        // const savedOrder = await this.orderRepo.save(order);
+        // const order_id = savedOrder.id;
+        const order_id = moment().valueOf();
+    
+        console.log(`<Order-Service> send mq message: inventory_reduce_queue`, { product_id, quantity, order_id }, { user_id })
+        // 发送消息到库存服务
+        await this.queueService.publishMessage('inventory_reduce_queue', { product_id, quantity, order_id });
+    
+        return 'send order mq done';
+    }
+
+    @RabbitSubscribe({
+        exchange: 'nest_rabbitmq',
+        routingKey: 'inventory_reduce_queue_done',
+        queue: 'inventory_reduce_queue_done',
+    })
+    async updateOrder(msg: { order_id: number, status: string }) {
+        const { order_id, status } = msg;
+        console.log(`<Order-Service> get mq message: inventory_reduce_queue_done`, msg)
+        // try {
+        //   const order = await this.orderRepo.findOne({ where: { id: order_id } });
+        //   if (!order || order.status != 'PENDING') {
+        //     throw new ConflictException('Insufficient stock.');
+        //   }
+
+        //   order.status = status
+        //   await this.orderRepo.save(order);
+        // } catch(error) {
+        //   console.error(`updateOrder catch error: `, error)
+        // }
+    }
 }

@@ -1,8 +1,8 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { Repository } from 'typeorm'
-import { InjectRepository } from '@nestjs/typeorm';
+// import { Repository } from 'typeorm'
+// import { InjectRepository } from '@nestjs/typeorm';
 import { Inventory } from './entities/inventory.entity';
-import { RedisLockService } from "../../shared/src/redis/redis-lock.service"
+// import { RedisLockService } from "../../shared/src/redis/redis-lock.service"
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { QueueService } from '../../queue/src/queue.service';
 
@@ -11,13 +11,17 @@ import { QueueService } from '../../queue/src/queue.service';
 export class InventoryService {
     // private inventory = { productId1: 100, productId2: 200 }; // 模拟库存
     constructor(
-        @InjectRepository(Inventory) private readonly inventoryRepo: Repository<Inventory>,
-        private readonly redisLockService: RedisLockService,
+        // @InjectRepository(Inventory) private readonly inventoryRepo: Repository<Inventory>,
+        // private readonly redisLockService: RedisLockService,
         private readonly queueService: QueueService,
     ) {}
+    
+    getHello(): string {
+        return 'Hello Inventory Service!';
+    }
 
     // @RabbitSubscribe({
-    //   exchange: 'order_exchange',
+    //   exchange: 'nest_rabbitmq',
     //   routingKey: 'inventory_check_queue',
     //   queue: 'inventory_check_queue',
     // })
@@ -32,39 +36,56 @@ export class InventoryService {
     // }
 
     @RabbitSubscribe({
-        exchange: 'order_exchange',
+        exchange: 'nest_rabbitmq',
         routingKey: 'inventory_reduce_queue',
         queue: 'inventory_reduce_queue',
     })
     async reduceInventory(msg: { order_id: number; product_id: string; quantity: number }) { //: Promise<void> {
-      const { order_id, product_id, quantity } = msg;
-      const lockKey = `lock:inventory:${product_id}`;
-      const lockAcquired = await this.redisLockService.lock(lockKey, 5000); // 5秒锁
-  
-      if (!lockAcquired) {
-        // 发送消息到库存服务
-        await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
-        console.error('Unable to acquire lock for inventory.')
-        // throw new ConflictException('Unable to acquire lock for inventory.');
-      }
-  
-      try {
-        const inventory = await this.inventoryRepo.findOne({ where: { product_id } });
-        if (!inventory || inventory.stock < quantity) {
-          // 发送消息到库存服务
-          await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
-          console.error('Insufficient stock.')
-          // throw new ConflictException('Insufficient stock.');
-        }
-  
-        inventory.stock -= quantity;
-        await this.inventoryRepo.save(inventory);
+        const { order_id, product_id, quantity } = msg;
+        console.log(`<Inventory-Service> get mq message: inventory_reduce_queue`, msg)
+        //     const lockKey = `lock:inventory:${product_id}`;
+        //     const lockAcquired = await this.redisLockService.lock(lockKey, 5000); // 5秒锁
         
+        //     if (!lockAcquired) {
+        //         // 发送消息到库存服务
+        //         await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
+        //         console.error('Unable to acquire lock for inventory.')
+        //         // throw new ConflictException('Unable to acquire lock for inventory.');
+        //     }
+        
+        console.log(`<Inventory-Service> send mq message: inventory_reduce_queue_done`, { order_id, status: `CONFIRM` })
         // 发送消息到库存服务
         await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `CONFIRM` });
-
-      } finally {
-        await this.redisLockService.unlock(lockKey);
-      }
     }
+    // async reduceInventory(msg: { order_id: number; product_id: string; quantity: number }) { //: Promise<void> {
+    //     const { order_id, product_id, quantity } = msg;
+    //     const lockKey = `lock:inventory:${product_id}`;
+    //     const lockAcquired = await this.redisLockService.lock(lockKey, 5000); // 5秒锁
+    
+    //     if (!lockAcquired) {
+    //         // 发送消息到库存服务
+    //         await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
+    //         console.error('Unable to acquire lock for inventory.')
+    //         // throw new ConflictException('Unable to acquire lock for inventory.');
+    //     }
+    
+    //     try {
+    //         const inventory = await this.inventoryRepo.findOne({ where: { product_id } });
+    //         if (!inventory || inventory.stock < quantity) {
+    //             // 发送消息到库存服务
+    //             await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `REJECT` });
+    //             console.error('Insufficient stock.')
+    //             // throw new ConflictException('Insufficient stock.');
+    //         }
+      
+    //         inventory.stock -= quantity;
+    //         await this.inventoryRepo.save(inventory);
+            
+    //         // 发送消息到库存服务
+    //         await this.queueService.publishMessage('inventory_reduce_queue_done', { order_id, status: `CONFIRM` });
+
+    //     } finally {
+    //         await this.redisLockService.unlock(lockKey);
+    //     }
+    // }
 }

@@ -14,15 +14,19 @@ import { InventoryService } from './inventory.service';
 
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+    constructor(private readonly inventoryService: InventoryService) {}
 
-  // @Post('/lock')
-  // async lockStock(@Body() lockStockDto: LockStockDto) {
-  //   return this.inventoryService.lockStock(lockStockDto);
-  // }
+    @Get()
+    getHello(): string {
+        return this.inventoryService.getHello();
+    }
+    // @Post('/lock')
+    // async lockStock(@Body() lockStockDto: LockStockDto) {
+    //   return this.inventoryService.lockStock(lockStockDto);
+    // }
 
-  // @Post('/reduce')
-  // async reduceStock(@Body() reduceStockDto: ReduceStockDto) {
-  //   return this.inventoryService.reduceStock(reduceStockDto);
-  // }
+    // @Post('/reduce')
+    // async reduceStock(@Body() reduceStockDto: ReduceStockDto) {
+    //   return this.inventoryService.reduceStock(reduceStockDto);
+    // }
 }
