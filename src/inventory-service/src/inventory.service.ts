@@ -6,6 +6,8 @@ import { RedisLockService } from "../../shared/src/redis/redis-lock.service"
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { QueueService } from '../../queue/src/queue.service';
 import { CacheService } from '../../shared/src/cache/cache.service'
+import { MoreThan } from 'typeorm'; 
+import { RedisService } from '../../shared/src/redis/redis.service'
 
 
 @Injectable()
@@ -16,10 +18,35 @@ export class InventoryService {
         private readonly redisLockService: RedisLockService,
         private readonly queueService: QueueService,
         private readonly cacheService: CacheService,
+        private readonly redisService: RedisService, // 注入 Redis
     ) {}
     
     getHello(): string {
         return 'Hello Inventory Service!';
+    }
+    
+    async onModuleInit() {  // init
+        let product_ids = []
+        const all_products = await this.inventoryRepo.find({
+            where: {
+              stock: MoreThan(0),  // stock > 0
+            },
+        });
+        all_products.forEach(info => {
+            const { product_id } = info;
+            product_ids.push(product_id)
+        })
+        await this.redisService.set(`available_product_ids`, JSON.stringify(product_ids), 24*60*60); // 24 h
+
+        console.log('Loaded and cached available product IDs:', product_ids);
+    }
+    async getAllProductIds(): Promise<[]> {
+        const cachedProductIds = await this.redisService.getKey('available_product_ids');
+        if (cachedProductIds) {
+            return JSON.parse(cachedProductIds);
+        } else {
+            return []
+        }
     }
 
     @RabbitSubscribe({

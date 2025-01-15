@@ -7,6 +7,7 @@ import { Inventory } from './entities/inventory.entity';
 import { RedisLockModule } from '../../shared/src/redis/redis-lock.module';
 import { RedisModule } from '../../shared/src/redis/redis.module';
 import { CacheService } from '../../shared/src/cache/cache.service'
+import { RedisService } from '../../shared/src/redis/redis.service'
 import * as dotenv from 'dotenv';
 
 // 加载 .env 文件中的环境变量
@@ -31,8 +32,8 @@ dotenv.config();
         TypeOrmModule.forFeature([Inventory]) // 注册库存实体
     ],
     controllers: [InventoryController],
-    providers: [InventoryService, CacheService],
-    exports: [CacheService]
+    providers: [InventoryService, CacheService, RedisService],
+    exports: [CacheService, RedisService]
 })
 export class AppModule {}
 

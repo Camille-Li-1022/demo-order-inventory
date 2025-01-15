@@ -14,13 +14,13 @@ export class OrderController {
 
     @Get('status')
     async getOrderStatus(@Query() query: { user_id: number, order_id: number }): Promise<{ order_id: number, status: string }> {
-      return this.orderService.getOrderStatus(query.user_id, query.order_id);
+        return this.orderService.getOrderStatus(query.user_id, query.order_id);
     }
   
     // 根据 user_id 获取用户的所有订单
     @Get('orders')
     async listUserOrders(@Query('user_id') user_id: number) {
-      return this.orderService.listUserOrders(user_id);
+        return this.orderService.listUserOrders(user_id);
     }
 
     @Post('create')

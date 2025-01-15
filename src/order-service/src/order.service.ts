@@ -9,14 +9,21 @@ import * as moment from 'moment';
 
 @Injectable()
 export class OrderService {
+    private products: [] = [];
+
     constructor(
         @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
         private readonly queueService: QueueService,
         private readonly cacheService: CacheService,
     ) {}
+    private async loadProductsFromInventoryService() {
+    }
     
     getHello(): string {
         return 'Hello Order Service!';
+    }
+    async onModuleInit() {
+        await this.loadProductsFromInventoryService();
     }
 
     async getOrderStatus(user_id: number, order_id: number): Promise<{ order_id: number, status: string }> {

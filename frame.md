@@ -87,3 +87,6 @@ src/
 
     curl -X GET "http://localhost:3000/order/status?user_id=1&order_id=599"
     curl -X GET "http://localhost:3000/order/orders?user_id=1"
+
+
+    curl -X GET "http://localhost:3001/inventory/list"
