@@ -12,6 +12,11 @@ export class OrderController {
         return this.orderService.getHello();
     }
 
+    @Get('products')
+    async getAllProducts() {
+        return await this.orderService.getAllProductIds();
+    }
+
     @Get('status')
     async getOrderStatus(@Query() query: { user_id: number, order_id: number }): Promise<{ order_id: number, status: string }> {
         return this.orderService.getOrderStatus(query.user_id, query.order_id);

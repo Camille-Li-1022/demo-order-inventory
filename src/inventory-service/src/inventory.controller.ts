@@ -11,8 +11,8 @@ export class InventoryController {
     getHello(): string {
         return this.inventoryService.getHello();
     }
-    @Get('list')
-    async getAllProducts() {
-        return await this.inventoryService.getAllProductIds();
-    }
+    // @Get('list')
+    // async getAllProducts() {
+    //     return await this.inventoryService.getAllProductIds();
+    // }
 }

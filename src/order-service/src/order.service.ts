@@ -6,6 +6,7 @@ import { QueueService } from '../../queue/src/queue.service';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
 import { CacheService } from '../../shared/src/cache/cache.service'
 import * as moment from 'moment';
+import { RedisService } from '../../shared/src/redis/redis.service'
 
 @Injectable()
 export class OrderService {
@@ -15,8 +16,15 @@ export class OrderService {
         @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
         private readonly queueService: QueueService,
         private readonly cacheService: CacheService,
+        private readonly redisService: RedisService, // 注入 Redis
     ) {}
     private async loadProductsFromInventoryService() {
+        const cachedProductIds = await this.redisService.getKey('available_product_ids');
+        this.products = JSON.parse(cachedProductIds)
+        console.log("<Order-Service> load product_ids: ", this.products)
+    }
+    async getAllProductIds(): Promise<[]> {
+        return this.products
     }
     
     getHello(): string {
