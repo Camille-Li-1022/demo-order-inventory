@@ -19,16 +19,48 @@ export class OrderService {
         return 'Hello Order Service!';
     }
 
-    async createOrder(dto: Order): Promise<Order|null> {
+    async getOrderStatus(user_id: number, order_id: number): Promise<{ order_id: number, status: string }> {
+        try {
+            const cache_key = `${user_id}-${order_id}`
+            if (this.cacheService.has(cache_key)) {
+                return this.cacheService.get(cache_key)
+            }
+
+            const order = await this.orderRepo.findOne({ where: { id: order_id } });
+            if (!order || order.user_id != user_id) {
+                throw new ConflictException('Order not found')
+            }
+
+            this.cacheService.set(cache_key, order.status)
+            return { order_id, status: order.status }
+        } catch(error) {
+            console.error(`getOrder:: order not found: `, error)
+            return { order_id, status: '' }
+        }
+    }
+
+    async listUserOrders(user_id: number): Promise<Order[]> {
+        try {
+            const orders = await this.orderRepo.find({ where: { user_id } });
+            return orders
+        } catch(error) {
+            console.error(`Error listUserOrders:: `, error)
+            return []
+        }
+    }
+
+    async createOrder(dto: Order): Promise<Order|any> {
         const { user_id, product_id, quantity } = dto;
         if (!this.cacheService.has(product_id)) {
             this.cacheService.set(product_id, true, 5*60)   // 5min cache
         }
         if (!this.cacheService.get(product_id)) {       // already set to be false, means 'Insufficient stock' 
-            return null;
+            // return {};
+            throw new ConflictException(`Insufficient stock.`);
         }
 
-        const order = this.orderRepo.create({ user_id, product_id, quantity, status: 'PENDING' });
+        const status = 'PENDING'
+        const order = this.orderRepo.create({ user_id, product_id, quantity, status });
         const savedOrder = await this.orderRepo.save(order);
         const order_id = savedOrder.id;
         console.log("=========== debug in Order-Service, savedOrder: ", savedOrder)
@@ -36,6 +68,7 @@ export class OrderService {
         console.log(`<Order-Service> send mq message: inventory_reduce_queue`, { product_id, quantity, order_id }, { user_id })
         // 发送消息到库存服务
         await this.queueService.publishMessage('inventory_reduce_queue', { product_id, quantity, order_id });
+        this.cacheService.set(`${user_id}-${order_id}`, status)
 
         return order;
     }
@@ -56,6 +89,7 @@ export class OrderService {
 
             order.status = status
             await this.orderRepo.save(order);
+            this.cacheService.set(`${order.user_id}-${order_id}`, order.status)
 
             if (error_code && error_code == 2) {
                 const { product_id } = order;
@@ -75,6 +109,7 @@ export class OrderService {
             }
 
             order.status = 'COMPLETE'
+            this.cacheService.set(`${user_id}-${order_id}`, order.status)
             await this.orderRepo.save(order);
         } catch(error) {
             console.error(`COMPLETE:: order not found: `, error)
@@ -95,6 +130,7 @@ export class OrderService {
 
             order.status = 'CANCEL'
             await this.orderRepo.save(order);
+            this.cacheService.set(`${user_id}-${order_id}`, order.status)
     
             const { product_id, quantity } = order;
             console.log(`<Order-Service> send mq message: inventory_add_queue`, { product_id, quantity, order_id }, { user_id })

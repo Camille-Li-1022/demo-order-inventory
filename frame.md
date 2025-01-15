@@ -83,3 +83,7 @@ src/
       "user_id": 2,
       "order_id": 4
     }'
+
+
+    curl -X GET "http://localhost:3000/order/status?user_id=1&order_id=599"
+    curl -X GET "http://localhost:3000/order/orders?user_id=1"
