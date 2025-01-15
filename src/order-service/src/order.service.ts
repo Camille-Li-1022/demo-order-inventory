@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { QueueService } from '../../queue/src/queue.service';
 import { RabbitSubscribe } from '@golevelup/nestjs-rabbitmq';
+import { CacheService } from '../../shared/src/cache/cache.service'
 import * as moment from 'moment';
 
 @Injectable()
@@ -11,14 +12,22 @@ export class OrderService {
     constructor(
         @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
         private readonly queueService: QueueService,
+        private readonly cacheService: CacheService,
     ) {}
     
     getHello(): string {
         return 'Hello Order Service!';
     }
 
-    async createOrder(dto: Order): Promise<Order> {
+    async createOrder(dto: Order): Promise<Order|null> {
         const { user_id, product_id, quantity } = dto;
+        if (!this.cacheService.has(product_id)) {
+            this.cacheService.set(product_id, true, 5*60)   // 5min cache
+        }
+        if (!this.cacheService.get(product_id)) {       // already set to be false, means 'Insufficient stock' 
+            return null;
+        }
+
         const order = this.orderRepo.create({ user_id, product_id, quantity, status: 'PENDING' });
         const savedOrder = await this.orderRepo.save(order);
         const order_id = savedOrder.id;
@@ -27,7 +36,7 @@ export class OrderService {
         console.log(`<Order-Service> send mq message: inventory_reduce_queue`, { product_id, quantity, order_id }, { user_id })
         // 发送消息到库存服务
         await this.queueService.publishMessage('inventory_reduce_queue', { product_id, quantity, order_id });
-    
+
         return order;
     }
 
@@ -36,8 +45,8 @@ export class OrderService {
         routingKey: 'inventory_reduce_queue_done',
         queue: 'inventory_reduce_queue_done',
     })
-    async updateOrder(msg: { order_id: number, status: string }) {
-        const { order_id, status } = msg;
+    async updateOrder(msg: { order_id: number, status: string, error_code?: number }) {
+        const { order_id, status, error_code } = msg;
         console.log(`<Order-Service> get mq message: inventory_reduce_queue_done`, msg)
         try {
             const order = await this.orderRepo.findOne({ where: { id: order_id } });
@@ -47,6 +56,11 @@ export class OrderService {
 
             order.status = status
             await this.orderRepo.save(order);
+
+            if (error_code && error_code == 2) {
+                const { product_id } = order;
+                this.cacheService.set(product_id, false, 5*60)      // Insufficient stock Or Invalid product_id
+            }
         } catch(error) {
             console.error(`Update:: order not found: `, error)
         }
@@ -91,5 +105,17 @@ export class OrderService {
             return 'error'
         }
         return 'ok'
+    }
+
+    @RabbitSubscribe({
+        exchange: 'nest_rabbitmq',
+        routingKey: 'inventory_add_queue_done',
+        queue: 'inventory_add_queue_done',
+    })
+    async updateStock(msg: { product_id: string }) {
+        const { product_id } = msg;
+        console.log(`<Order-Service> get mq message: inventory_add_queue_done`, msg)
+        
+        this.cacheService.set(product_id, true, 5*60)   // 5 min cache
     }
 }

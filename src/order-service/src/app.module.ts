@@ -3,6 +3,7 @@ import { OrderController } from './order.controller';
 import { OrderService } from './order.service';
 import { QueueModule } from '../../queue/src/queue.module';
 import { TypeOrmModule } from "@nestjs/typeorm"
+import { CacheService } from '../../shared/src/cache/cache.service'
 import { Order } from './entities/order.entity';
 import * as dotenv from 'dotenv';
 
@@ -26,6 +27,7 @@ dotenv.config();
         TypeOrmModule.forFeature([Order]) // 注册库存实体
     ],
     controllers: [OrderController],
-    providers: [OrderService],
+    providers: [OrderService, CacheService],
+    exports: [CacheService]
 })
 export class AppModule {}

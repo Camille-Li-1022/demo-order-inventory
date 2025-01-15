@@ -15,6 +15,7 @@ export const RABBITMQ_CONFIG = {
           inventoryReduce: 'inventory_reduce_queue',
           inventoryReduceDone: 'inventory_reduce_queue_done',
           inventoryAdd: 'inventory_add_queue',
+          inventoryAddDone: 'inventory_add_queue_done',
       },
 };
   
